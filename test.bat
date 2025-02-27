@@ -13,16 +13,39 @@ set time_6=3
 set time_7=5
 set time_8=3
 
-:: Tạo danh sách các file ảnh với thời gian hiển thị riêng
-echo Tao danh sach hinh anh...
-(
-  for %%i in (1 2 3 4 5 6 7 8) do (
-    echo file '%%i.jpeg'
-    echo duration !time_%%i!
+:: Kiểm tra sự tồn tại của các file ảnh
+echo Kiem tra cac file hinh anh...
+set missing_files=0
+for %%i in (1 2 3 4 5 6 7 8) do (
+  if not exist %%i.jpeg (
+    echo Loi: Khong tim thay file %%i.jpeg
+    set /a missing_files+=1
   )
-  :: Dòng cuối để đảm bảo ảnh cuối được hiển thị đủ thời gian
-  echo file '8.jpeg'
-) > images.txt
+)
+
+if !missing_files! gtr 0 (
+  echo Tong cong !missing_files! file hinh anh bi thieu. Vui long kiem tra lai.
+  exit /b 1
+)
+
+:: Kiểm tra sự tồn tại của file âm thanh
+if not exist voice.mp3 (
+  echo Loi: Khong tim thay file voice.mp3
+  exit /b 1
+)
+
+if not exist bg.mp3 (
+  echo Loi: Khong tim thay file bg.mp3
+  exit /b 1
+)
+
+if not exist subtitle.srt (
+  echo Loi: Khong tim thay file subtitle.srt
+  exit /b 1
+)
+
+:: Tạo thư mục tạm để lưu video tạm
+if not exist temp_videos mkdir temp_videos
 
 :: Thiết lập kích thước video: 720x1280 (tỷ lệ 9:16)
 set video_width=720
@@ -35,41 +58,33 @@ for %%i in (1 2 3 4 5 6 7 8) do (
 )
 echo Tong thoi gian video: !total_duration! giay
 
-:: Tạo video với hiệu ứng pan (không dùng zoom động)
-echo Tao video tu hinh anh voi hieu ung pan doc...
-
-:: Tạo thư mục tạm để lưu video tạm
-if not exist temp_videos mkdir temp_videos
+:: Tính thời điểm bắt đầu fade out (tổng thời gian - 1 giây)
+set /a fade_out_start=!total_duration!-1
 
 :: Thiết lập tham số cho video
-:: Giảm fps từ 30 xuống 25 để giảm số frame xử lý
-set fps=60
-:: Sử dụng preset "veryfast" để tối ưu tốc độ mã hóa cho mọi máy
-set preset=veryfast
-set video_quality=22
+set fps=25
+set preset=ultrafast
+set video_quality=23
 set transition_duration=0.5
 
-:: Giảm pan_range để chuyển động nhẹ nhàng hơn (vẫn dùng giá trị 30)
-set pan_range=30
-
-:: Xử lý từng ảnh:
-:: - Dùng filter scale với force_original_aspect_ratio=increase và crop để đảm bảo ảnh lấp đầy khung (tránh khoảng đen)
-:: - Áp dụng zoompan với z='1.1' (zoom cố định) để khởi đầu đã được zoom vào, hạn chế lộ khoảng trống khi pan
-:: - Số frame tính = fps * thời gian của ảnh
-:: - Công thức y:
-::    + Ảnh lẻ: y tăng từ 0 đến pan_range (cuộn xuống)
-::    + Ảnh chẵn: y giảm từ pan_range xuống 0 (cuộn lên)
+:: Xử lý từng ảnh với hiệu ứng Ken Burns đơn giản
+echo Tao video voi hieu ung Ken Burns...
 for %%i in (1 2 3 4 5 6 7 8) do (
-  echo Dang xu ly anh %%i.jpeg voi hieu ung pan doc...
+  echo Dang xu ly anh %%i.jpeg...
   set /a mod=%%i %% 2
+  
   if !mod! equ 0 (
-    rem Ảnh chẵn: cuộn lên (y giảm từ pan_range về 0)
-    set "y_expr=%pan_range% - (%pan_range%*on/((%fps%*!time_%%i!)-1))"
+    :: Ảnh chẵn: chuyển động từ dưới lên
+    ffmpeg -y -threads 0 -loop 1 -i %%i.jpeg -t !time_%%i! -vf "scale=%video_width%:%video_height%:force_original_aspect_ratio=increase,crop=%video_width%:%video_height%,fps=%fps%" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% temp_videos\%%i.mp4
   ) else (
-    rem Ảnh lẻ: cuộn xuống (y tăng từ 0 đến pan_range)
-    set "y_expr=(%pan_range%*on/((%fps%*!time_%%i!)-1))"
+    :: Ảnh lẻ: chuyển động từ trên xuống
+    ffmpeg -y -threads 0 -loop 1 -i %%i.jpeg -t !time_%%i! -vf "scale=%video_width%:%video_height%:force_original_aspect_ratio=increase,crop=%video_width%:%video_height%,fps=%fps%" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% temp_videos\%%i.mp4
   )
-  ffmpeg -y -threads 0 -loop 1 -i %%i.jpeg -t !time_%%i! -vf "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,zoompan=z='1.1':d=%fps%*!time_%%i!:x='iw/2-(iw/1.1)/2':y=!y_expr!:s=720x1280:fps=%fps%" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% temp_videos\%%i.mp4
+  
+  if not exist temp_videos\%%i.mp4 (
+    echo Loi: Khong the tao file video tam cho anh %%i.jpeg
+    goto :cleanup
+  )
 )
 
 :: Tạo danh sách các video tạm thời
@@ -80,12 +95,9 @@ echo Tao danh sach cac video tam thoi...
   )
 ) > list.txt
 
-:: Tính thời điểm bắt đầu fade out (tổng thời gian - 1 giây)
-set /a fade_out_start=!total_duration!-1
-
-:: Nối các video lại với nhau và thêm hiệu ứng chuyển tiếp (fade in/out)
-echo Noi cac video lai voi nhau va them hieu ung chuyen tiep...
-ffmpeg -y -threads 0 -f concat -safe 0 -i list.txt -filter_complex "fps=%fps%,format=yuv420p,fade=t=in:st=0:d=0.5,fade=t=out:st=%fade_out_start%:d=0.5" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% temp_video_no_audio.mp4
+:: Nối các video lại với nhau và thêm hiệu ứng fade in/out và chuyển cảnh
+echo Noi cac video lai voi nhau va them hieu ung fade in/out va chuyen canh...
+ffmpeg -y -threads 0 -f concat -safe 0 -i list.txt -filter_complex "format=yuv420p,fade=t=in:st=0:d=0.5,fade=t=out:st=%fade_out_start%:d=0.5" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% temp_video_no_audio.mp4
 
 if not exist temp_video_no_audio.mp4 (
     echo Loi: Khong the tao file video tam!
@@ -94,7 +106,7 @@ if not exist temp_video_no_audio.mp4 (
 
 :: Kết hợp video với âm thanh
 echo Ket hop video voi am thanh...
-ffmpeg -y -threads 0 -i temp_video_no_audio.mp4 -accurate_seek -i voice.mp3 -accurate_seek -i bg.mp3 -filter_complex "[1:a]volume=1.0[voice];[2:a]volume=0.3[bg];[voice][bg]amix=inputs=2:duration=longest,dynaudnorm=f=150:g=15[a]" -map 0:v -map "[a]" -c:v copy -c:a aac -b:a 192k -shortest temp_video_with_audio.mp4
+ffmpeg -y -threads 0 -i temp_video_no_audio.mp4 -i voice.mp3 -i bg.mp3 -filter_complex "[1:a]volume=1.0[voice];[2:a]volume=0.3[bg];[voice][bg]amix=inputs=2:duration=longest,dynaudnorm=f=150:g=15[a]" -map 0:v -map "[a]" -c:v copy -c:a aac -b:a 192k -shortest temp_video_with_audio.mp4
 
 if not exist temp_video_with_audio.mp4 (
     echo Loi: Khong the tao file video voi am thanh!
@@ -117,9 +129,10 @@ echo Kich thuoc video: %video_width%x%video_height% (9:16 ratio)
 echo Xoa file tam...
 if exist images.txt del images.txt
 if exist list.txt del list.txt
-for %%i in (1 2 3 4 5 6 7 8) do (
-  if exist temp_videos\%%i.mp4 del temp_videos\%%i.mp4
-)
-if exist temp_videos rmdir temp_videos
+if exist list_with_transitions.txt del list_with_transitions.txt
+if exist temp_videos rmdir /s /q temp_videos 2>nul
 if exist temp_video_no_audio.mp4 del temp_video_no_audio.mp4
 if exist temp_video_with_audio.mp4 del temp_video_with_audio.mp4
+
+echo Qua trinh hoan tat.
+exit /b 0
