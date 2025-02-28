@@ -1,6 +1,6 @@
 # CreateVideo.ps1
 # Phiên bản PowerShell script tích hợp tạo video với hiệu ứng Ken Burns, xfade (smoothleft),
-# kết hợp âm thanh, thêm phụ đề và cleanup các file tạm.
+# kết hợp âm thanh, thêm phụ đề ASS với hiệu ứng karaoke và cleanup các file tạm.
 
 # -------------------------------
 # 1. Kiểm tra sự tồn tại của các file cần thiết
@@ -20,11 +20,28 @@ if ($missingFiles -gt 0) {
     Write-Error "$missingFiles image files missing. Exiting."
     exit 1
 }
-foreach ($file in @("voice.mp3", "bg.mp3", "subtitle.srt")) {
+
+# Kiểm tra file âm thanh
+foreach ($file in @("voice.mp3", "bg.mp3")) {
     if (-not (Test-Path $file)) {
         Write-Error "Error: File $file not found."
         exit 1
     }
+}
+
+# Kiểm tra và chuyển đổi từ SRT sang ASS nếu cần
+if ((Test-Path "subtitle.srt") -and (-not (Test-Path "subtitle.ass"))) {
+    Write-Host "Converting subtitle.srt to subtitle.ass..."
+    # Chạy script basic-ass-creator.ps1 để chuyển đổi SRT sang ASS
+    .\basic-ass-creator.ps1 subtitle.srt subtitle.ass
+    if (-not (Test-Path "subtitle.ass")) {
+        Write-Error "Error: Failed to convert subtitle.srt to subtitle.ass."
+        exit 1
+    }
+    Write-Host "Conversion successful."
+} elseif (-not (Test-Path "subtitle.ass")) {
+    Write-Error "Error: Neither subtitle.srt nor subtitle.ass found."
+    exit 1
 }
 
 # Tạo thư mục tạm nếu chưa có
@@ -119,13 +136,13 @@ $filterComplex = "[0:v]format=pix_fmts=yuva420p,setpts=PTS-STARTPTS[v0];" +
 "[5:v]format=pix_fmts=yuva420p,setpts=PTS-STARTPTS[v5];" +
 "[6:v]format=pix_fmts=yuva420p,setpts=PTS-STARTPTS[v6];" +
 "[7:v]format=pix_fmts=yuva420p,setpts=PTS-STARTPTS[v7];" +
-"[v0][v1]xfade=transition=smoothleft:duration=$transitionDuration:offset=$offset1[v01];" +
-"[v01][v2]xfade=transition=smoothleft:duration=$transitionDuration:offset=$offset2[v02];" +
-"[v02][v3]xfade=transition=smoothleft:duration=$transitionDuration:offset=$offset3[v03];" +
-"[v03][v4]xfade=transition=smoothleft:duration=$transitionDuration:offset=$offset4[v04];" +
-"[v04][v5]xfade=transition=smoothleft:duration=$transitionDuration:offset=$offset5[v05];" +
-"[v05][v6]xfade=transition=smoothleft:duration=$transitionDuration:offset=$offset6[v06];" +
-"[v06][v7]xfade=transition=smoothleft:duration=$transitionDuration:offset=$offset7[vout]"
+"[v0][v1]xfade=transition=smoothleft:duration=${transitionDuration}:offset=$offset1[v01];" +
+"[v01][v2]xfade=transition=smoothleft:duration=${transitionDuration}:offset=$offset2[v02];" +
+"[v02][v3]xfade=transition=smoothleft:duration=${transitionDuration}:offset=$offset3[v03];" +
+"[v03][v4]xfade=transition=smoothleft:duration=${transitionDuration}:offset=$offset4[v04];" +
+"[v04][v5]xfade=transition=smoothleft:duration=${transitionDuration}:offset=$offset5[v05];" +
+"[v05][v6]xfade=transition=smoothleft:duration=${transitionDuration}:offset=$offset6[v06];" +
+"[v06][v7]xfade=transition=smoothleft:duration=${transitionDuration}:offset=$offset7[vout]"
 
 $ffmpegXfade = "ffmpeg -y -threads 0 -i temp_videos\1.mp4 -i temp_videos\2.mp4 -i temp_videos\3.mp4 -i temp_videos\4.mp4 -i temp_videos\5.mp4 -i temp_videos\6.mp4 -i temp_videos\7.mp4 -i temp_videos\8.mp4 -filter_complex `"$filterComplex`" -map `"[vout]`" -c:v libx264 -preset $preset -crf $videoQuality -r $fps -pix_fmt yuv420p -movflags +faststart final_video_no_audio.mp4"
 Write-Host "Executing xfade command:"
@@ -156,17 +173,15 @@ if (-not (Test-Path "final_video_with_audio.mp4")) {
 }
 
 # -------------------------------
-# 6. Thêm phụ đề vào video
+# 6. Thêm phụ đề ASS vào video
 # -------------------------------
-# Để tránh lỗi với ký tự &, sử dụng string literal đơn (single quotes) cho filter phụ đề.
-$subtitleFilter = 'subtitles=subtitle.srt:force_style=''FontName=Arial,FontSize=16,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H80000000,Bold=1,Italic=0,Alignment=2,MarginV=30'''
-$ffmpegSubtitle = "ffmpeg -y -threads 0 -i final_video_with_audio.mp4 -vf `"$subtitleFilter`" -c:a copy -movflags +faststart final_video.mp4"
-Write-Host "Executing subtitle command:"
+$ffmpegSubtitle = "ffmpeg -y -threads 0 -i final_video_with_audio.mp4 -vf `"ass=subtitle.ass`" -c:a copy -movflags +faststart final_video.mp4"
+Write-Host "Executing ASS subtitle command:"
 Write-Host $ffmpegSubtitle
 Invoke-Expression $ffmpegSubtitle
 
 if (-not (Test-Path "final_video.mp4")) {
-    Write-Warning "Warning: Failed to add subtitles. Copying video with audio as final output."
+    Write-Warning "Warning: Failed to add ASS subtitles. Copying video with audio as final output."
     Copy-Item final_video_with_audio.mp4 final_video.mp4
     if (Test-Path "final_video.mp4") {
         Write-Host "Final video (without subtitles) created."
@@ -175,7 +190,7 @@ if (-not (Test-Path "final_video.mp4")) {
         exit 1
     }
 } else {
-    Write-Host "Subtitles added successfully."
+    Write-Host "ASS subtitles added successfully."
 }
 
 Write-Host "Final video created: final_video.mp4"

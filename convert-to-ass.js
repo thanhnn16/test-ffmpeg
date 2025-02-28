@@ -16,26 +16,39 @@ function formatAssTime(seconds) {
     return num.toString().padStart(length, '0');
   }
   
-  // Hàm chuyển đổi groups thành ASS dialogue events với hiệu ứng karaoke cho từng từ
+  // Hàm chuyển đổi groups thành ASS dialogue events với hiệu ứng karaoke nâng cao
   function convertGroupsToASS(groups, words) {
     return groups.map((group) => {
       let karaokeLine = "";
       // Duyệt qua các từ từ startIndex đến endIndex trong mảng words
       let startIndex = group.startIndex || 0;
       let endIndex = group.endIndex || 0;
+      
       for (let i = startIndex; i <= endIndex; i++) {
         const wordObj = words[i];
         // Tính thời lượng của từ tính theo centisecond (1 giây = 100 cs)
         const duration = Math.round((wordObj.end - wordObj.start) * 100);
-        // Ghép với tag {\k<duration>}
-        karaokeLine += `{\\k${duration}}${wordObj.word} `;
+        
+        // Sử dụng hiệu ứng karaoke nâng cao với màu sắc chuyển động
+        // \k<duration> định nghĩa thời gian hiệu ứng
+        // \c&H<bbggrr>& định nghĩa màu chữ (định dạng là bbggrr - blue, green, red)
+        // \3c&H<bbggrr>& định nghĩa màu viền
+        // \4c&H<bbggrr>& định nghĩa màu bóng đổ
+        karaokeLine += `{\\k${duration}\\c&H0CF4FF&\\3c&H000000&\\4c&H000000&}${wordObj.word} `;
       }
+      
       karaokeLine = karaokeLine.trim();
+      
+      // Thêm tag đặc biệt để áp dụng hiệu ứng karaoke
+      // \t định nghĩa một hiệu ứng biến đổi trong khoảng thời gian
+      // Định dạng: \t(<start_time>,<end_time>,<transform_tags>)
+      const transformLine = `{\\blur3\\bord2\\shad1\\fscx110\\fscy110\\t(0,50,\\blur0\\bord1.5\\fscx100\\fscy100)}${karaokeLine}`;
+      
       return {
         id: group.index,
         startTime: formatAssTime(group.start),
         endTime: formatAssTime(group.end),
-        text: karaokeLine
+        text: transformLine
       };
     });
   }
@@ -50,10 +63,12 @@ function formatAssTime(seconds) {
   PlayResX: 1920
   PlayResY: 1080
   Timer: 100.0000
+  WrapStyle: 0
   
   [V4+ Styles]
   Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-  Style: Default,Arial,48,&H00FFFFFF,&H0000FFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1
+  Style: Default,Arial,54,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2.5,1.5,2,10,10,30,1
+  Style: Title,Arial Black,64,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,3,2,8,10,10,10,1
   
   [Events]
   Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;
@@ -62,13 +77,19 @@ function formatAssTime(seconds) {
   // Hàm tạo chuỗi ASS từ các dialogue events
   function generateAssString(assObjects) {
     const header = generateAssHeader();
+    
+    // Tạo tiêu đề chính giữa màn hình
+    const titleLine = `Dialogue: 0,0:00:00.00,0:00:05.00,Title,,0,0,0,,{\\fad(300,300)\\c&H00FFFF&\\3c&H000000&\\blur0.8}VIDEO TIẾNG VIỆT`;
+    
     const dialogueLines = assObjects.map(entry => {
-      return `Dialogue: 0,${entry.startTime},${entry.endTime},Default,,0,0,0,,${entry.text}`;
+      // Thêm hiệu ứng Fade In/Out cho từng đoạn phụ đề
+      return `Dialogue: 0,${entry.startTime},${entry.endTime},Default,,0,0,0,,{\\fad(200,200)}${entry.text}`;
     }).join('\n');
-    return `${header}\n${dialogueLines}`;
+    
+    return `${header}\n${titleLine}\n${dialogueLines}`;
   }
   
-  // Hàm xử lý whisper transcription thành groups theo cấu trúc mới (giữ nguyên logic cũ)
+  // Hàm xử lý whisper transcription thành groups
   function processWhisperGroups(input) {
     if (!input || typeof input !== "object" || !input.words || !Array.isArray(input.words) || input.words.length === 0) {
       throw new Error('Dữ liệu đầu vào không hợp lệ');
@@ -143,38 +164,170 @@ function formatAssTime(seconds) {
     return groups;
   }
   
-  // Hàm chính để sử dụng trong n8n: chuyển Whisper transcription thành ASS subtitle
-  function main() {
-    try {
-      // Lấy dữ liệu đầu vào từ $input.item.json
-      const input = $input.item.json;
+  // Hàm chuyển đổi SRT sang dữ liệu words/groups phù hợp cho ASS với hiệu ứng karaoke
+  function convertSrtToWords(srtContent) {
+    if (!srtContent) return null;
+    
+    // Tách các đoạn phụ đề
+    const subtitleBlocks = srtContent.trim().split(/\r?\n\r?\n/);
+    
+    let words = [];
+    let combinedText = "";
+    
+    // Xử lý từng đoạn phụ đề
+    subtitleBlocks.forEach((block, blockIndex) => {
+      const lines = block.split(/\r?\n/);
+      if (lines.length >= 3) {
+        // Phân tích định dạng thời gian
+        const timeMatch = lines[1].match(/(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})/);
+        if (timeMatch) {
+          const startTime = convertSrtTimeToSeconds(timeMatch[1]);
+          const endTime = convertSrtTimeToSeconds(timeMatch[2]);
+          
+          // Phân tích nội dung phụ đề
+          const text = lines.slice(2).join(" ");
+          combinedText += text + " ";
+          
+          // Chia thành các từ riêng lẻ
+          const textWords = text.split(/\s+/);
+          const wordDuration = (endTime - startTime) / textWords.length;
+          
+          // Tạo đối tượng word cho mỗi từ
+          textWords.forEach((word, i) => {
+            const wordStartTime = startTime + wordDuration * i;
+            const wordEndTime = i === textWords.length - 1 ? endTime : startTime + wordDuration * (i + 1);
+            
+            words.push({
+              word,
+              start: wordStartTime,
+              end: wordEndTime
+            });
+          });
+        }
+      }
+    });
+    
+    return {
+      words,
+      text: combinedText.trim()
+    };
+  }
+  
+  // Hàm chuyển đổi định dạng thời gian SRT sang số giây
+  function convertSrtTimeToSeconds(srtTime) {
+    const match = srtTime.match(/(\d{2}):(\d{2}):(\d{2}),(\d{3})/);
+    if (match) {
+      const hours = parseInt(match[1], 10);
+      const minutes = parseInt(match[2], 10);
+      const seconds = parseInt(match[3], 10);
+      const milliseconds = parseInt(match[4], 10);
       
-      if (!input || typeof input !== "object" || !input.words || !Array.isArray(input.words) || input.words.length === 0) {
-        return [{ json: { error: 'Dữ liệu đầu vào không hợp lệ' } }];
+      return hours * 3600 + minutes * 60 + seconds + milliseconds / 1000;
+    }
+    return 0;
+  }
+  
+  // Hàm chuyển đổi SRT thành ASS
+  function convertSrtToAss(srtContent) {
+    try {
+      // Chuyển đổi SRT thành dữ liệu words
+      const inputData = convertSrtToWords(srtContent);
+      
+      if (!inputData) {
+        throw new Error('Không thể chuyển đổi file SRT');
       }
       
-      // Xử lý dữ liệu Whisper thành groups
-      const groups = processWhisperGroups(input);
+      // Xử lý dữ liệu thành groups
+      const groups = processWhisperGroups(inputData);
       
       // Chuyển đổi groups thành ASS objects với hiệu ứng karaoke
-      const assObjects = convertGroupsToASS(groups, input.words);
+      const assObjects = convertGroupsToASS(groups, inputData.words);
       
       // Tạo chuỗi ASS
       const assString = generateAssString(assObjects);
       
-      return [{
-        json: {
-          assContent: assString,
-          assObjects: assObjects,
-          groups: groups
-        }
-      }];
+      return assString;
     } catch (error) {
       console.error('Lỗi khi xử lý dữ liệu:', error.message);
-      return [{ json: { error: error.message } }];
+      return null;
     }
   }
   
-  // Gọi hàm chính
-  return main();
+  // Hàm chính để sử dụng trong n8n hoặc chạy độc lập
+  function main() {
+    try {
+      // Kiểm tra xem có đang chạy trong môi trường n8n không
+      const isN8n = typeof $input !== 'undefined';
+      
+      if (isN8n) {
+        // Lấy dữ liệu đầu vào từ $input.item.json
+        const input = $input.item.json;
+        
+        if (!input) {
+          return [{ json: { error: 'Dữ liệu đầu vào không hợp lệ' } }];
+        }
+        
+        // Xử lý dữ liệu Whisper hoặc SRT
+        let result;
+        
+        if (input.srtContent) {
+          // Xử lý nếu là SRT content
+          result = convertSrtToAss(input.srtContent);
+        } else if (input.words) {
+          // Xử lý dữ liệu Whisper thành groups
+          const groups = processWhisperGroups(input);
+          
+          // Chuyển đổi groups thành ASS objects với hiệu ứng karaoke
+          const assObjects = convertGroupsToASS(groups, input.words);
+          
+          // Tạo chuỗi ASS
+          result = generateAssString(assObjects);
+        } else {
+          return [{ json: { error: 'Định dạng dữ liệu đầu vào không được hỗ trợ' } }];
+        }
+        
+        return [{
+          json: {
+            assContent: result
+          }
+        }];
+      } else {
+        // Chạy độc lập, đọc file từ tham số dòng lệnh hoặc đường dẫn mặc định
+        const fs = require('fs');
+        const srtPath = process.argv[2] || 'subtitle.srt';
+        const outputPath = process.argv[3] || 'subtitle.ass';
+        
+        if (!fs.existsSync(srtPath)) {
+          console.error(`File không tồn tại: ${srtPath}`);
+          process.exit(1);
+        }
+        
+        const srtContent = fs.readFileSync(srtPath, 'utf-8');
+        const assContent = convertSrtToAss(srtContent);
+        
+        if (assContent) {
+          fs.writeFileSync(outputPath, assContent, 'utf-8');
+          console.log(`Đã chuyển đổi thành công: ${outputPath}`);
+        } else {
+          console.error('Không thể chuyển đổi file SRT sang ASS');
+          process.exit(1);
+        }
+      }
+    } catch (error) {
+      console.error('Lỗi:', error.message);
+      if (typeof $input !== 'undefined') {
+        return [{ json: { error: error.message } }];
+      } else {
+        process.exit(1);
+      }
+    }
+  }
+  
+  // Chạy hàm main nếu là mô-đun chính
+  if (typeof module !== 'undefined' && !module.parent) {
+    main();
+  } else if (typeof $input !== 'undefined') {
+    // Gọi hàm chính trong môi trường n8n
+    return main();
+  }
   
