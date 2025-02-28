@@ -111,7 +111,7 @@ function CreateTitleLine {
 }
 
 # Hàm tạo dòng dialogue với hiệu ứng highlight từng từ
-function CreateHighlightDialogueLine {
+function CreateHighlightDialogueLine2 {
     param (
         [double]$startTime,
         [double]$endTime,
@@ -136,51 +136,66 @@ function CreateHighlightDialogueLine {
     # Tạo tag hiệu ứng cơ bản
     $basicEffect = "{$fadeTag$blurTag$borderTag$shadowTag}"
     
-    # Tạo tag màu mặc định
+    # Tạo tag màu mặc định và highlight
     $defaultColorTag = "$bs" + "c$amp" + "H$script:defaultColor"
-    
-    # Tạo tag màu highlight
     $highlightColorTag = "$bs" + "c$amp" + "H$script:highlightColor"
-    
-    # Tạo tag viền
     $outlineTag = "$bs" + "3c$amp" + "H$script:outlineColor"
     
-    # Xây dựng chuỗi highlight
-    $dialogueText = ""
+    # Xây dựng chuỗi phụ đề với hiệu ứng highlight
+    $dialogueLines = @()
     
-    # Thêm tag màu mặc định cho toàn bộ văn bản
-    $dialogueText += "{$defaultColorTag$outlineTag}"
+    # Tạo một dòng phụ đề với màu mặc định cho tất cả các từ
+    $defaultText = "{$defaultColorTag$outlineTag}"
+    foreach ($wordObj in $wordObjects) {
+        $defaultText += "$($wordObj.word) "
+    }
+    $defaultText = $defaultText.TrimEnd()
     
-    # Tạo các sự kiện highlight cho từng từ
-    for ($i = 0; $i -lt $wordObjects.Count; $i++) {
-        $wordObj = $wordObjects[$i]
-        $word = $wordObj.word
+    # Thêm dòng phụ đề mặc định (layer 0)
+    $dialoguePrefix = "Dialogue: 0,$startTimeAss,$endTimeAss,Default,,0,0,0,,"
+    $dialogueLines += $dialoguePrefix + $basicEffect + $defaultText
+    
+    # Tạo các dòng phụ đề highlight cho từng từ (layer 1)
+    foreach ($wordObj in $wordObjects) {
+        $wordStart = $wordObj.start
+        $wordEnd = $wordObj.end
         
-        # Tính thời gian tương đối của từ trong đoạn
-        $relativeStart = $wordObj.start - $startTime
-        $relativeEnd = $wordObj.end - $startTime
-        
-        # Chuyển đổi thành centiseconds
-        $startCs = [Math]::Round($relativeStart * 100)
-        $endCs = [Math]::Round($relativeEnd * 100)
-        
-        # Tạo tag thời gian bắt đầu highlight
-        $startTag = "$bs" + "t($startCs,$startCs,$highlightColorTag)"
-        
-        # Tạo tag thời gian kết thúc highlight (trở về màu mặc định)
-        $endTag = "$bs" + "t($endCs,$endCs,$defaultColorTag)"
-        
-        # Thêm tag highlight vào từ
-        $dialogueText += "{$startTag$endTag}$word "
+        # Chỉ tạo highlight nếu từ nằm trong khoảng thời gian của đoạn
+        if (($wordStart -ge $startTime) -and ($wordEnd -le $endTime)) {
+            # Định dạng thời gian bắt đầu và kết thúc cho từng từ
+            $wordStartAss = FormatAssTime $wordStart
+            $wordEndAss = FormatAssTime $wordEnd
+            
+            # Tạo văn bản phụ đề với từ được highlight
+            $highlightText = ""
+            
+            # Tạo văn bản với từ được highlight
+            $highlightText = "{$defaultColorTag$outlineTag}"
+            
+            for ($i = 0; $i -lt $wordObjects.Length; $i++) {
+                $w = $wordObjects[$i]
+                
+                if ($w -eq $wordObj) {
+                    # Đây là từ cần highlight
+                    $highlightText += "{$highlightColorTag}$($w.word){$defaultColorTag}"
+                } else {
+                    # Đây là từ bình thường
+                    $highlightText += "$($w.word)"
+                }
+                
+                # Thêm khoảng trắng sau mỗi từ (trừ từ cuối cùng)
+                if ($i -lt $wordObjects.Length - 1) {
+                    $highlightText += " "
+                }
+            }
+            
+            # Thêm dòng highlight cho từ này
+            $highlightPrefix = "Dialogue: 1,$wordStartAss,$wordEndAss,Default,,0,0,0,,"
+            $dialogueLines += $highlightPrefix + "{$blurTag$borderTag$shadowTag}" + $highlightText
+        }
     }
     
-    $dialogueText = $dialogueText.TrimEnd()
-    
-    # Tạo dòng dialogue hoàn chỉnh
-    $dialoguePrefix = "Dialogue: 0,$startTimeAss,$endTimeAss,Default,,0,0,0,,"
-    $dialogueLine = $dialoguePrefix + $basicEffect + $dialogueText
-    
-    return $dialogueLine
+    return $dialogueLines -join "`n"
 }
 
 # Hàm chuyển đổi JSON thành ASS
@@ -229,8 +244,8 @@ function ConvertJsonToAss {
             # Lấy các từ trong nhóm này từ whisper data
             $groupWords = $allWords[$startIndex..$endIndex]
             
-            # Tạo hiệu ứng highlight cho nhóm từ này
-            $dialogueLine = CreateHighlightDialogueLine $startTime $endTime $groupWords
+            # Tạo hiệu ứng highlight cho nhóm từ này (sử dụng phương pháp thay thế)
+            $dialogueLine = CreateHighlightDialogueLine2 $startTime $endTime $groupWords
             $assContent += "`n" + $dialogueLine
         }
         
