@@ -22,23 +22,20 @@ for %%i in (1 2 3 4 5 6 7 8) do (
     set /a missing_files+=1
   )
 )
-
 if !missing_files! gtr 0 (
   echo Tong cong !missing_files! file hinh anh bi thieu. Vui long kiem tra lai.
   exit /b 1
 )
 
-:: Kiểm tra sự tồn tại của file âm thanh
+:: Kiểm tra sự tồn tại của file âm thanh và phụ đề
 if not exist voice.mp3 (
   echo Loi: Khong tim thay file voice.mp3
   exit /b 1
 )
-
 if not exist bg.mp3 (
   echo Loi: Khong tim thay file bg.mp3
   exit /b 1
 )
-
 if not exist subtitle.srt (
   echo Loi: Khong tim thay file subtitle.srt
   exit /b 1
@@ -63,218 +60,114 @@ for %%i in (1 2 3 4 5 6 7 8) do (
 )
 echo Tong thoi gian video: !total_duration! giay
 
-:: Tính thời điểm bắt đầu fade out (tổng thời gian - 1 giây)
-set /a fade_out_start=!total_duration!-1
-
-:: Thiết lập tham số cho video
-set fps=25
-set preset=ultrafast
-set video_quality=23
-set transition_duration=1.5
+:: Các thông số cho video
+set fps=30
+set preset=medium
+set video_quality=20
+set transition_duration=0.5
 set zoom_speed=0.0008
 set max_zoom=1.3
+set bitrate=3M
+set gop_size=15
+
+echo Tao video voi hieu ung Ken Burns cho tung anh...
 
 :: Xử lý từng ảnh với hiệu ứng Ken Burns
-echo Tao video voi hieu ung Ken Burns...
 for %%i in (1 2 3 4 5 6 7 8) do (
   echo Dang xu ly anh %%i.jpeg...
-  
-  :: Tính toán số frame dựa trên thời gian hiển thị
   set /a actual_time=!time_%%i!
   set /a frames=!actual_time! * %fps%
-  
   if %%i==1 (
-    :: Ảnh 1: Zoom in từ giữa
-    ffmpeg -y -threads 0 -loop 1 -i %%i.jpeg -t !actual_time! -vf "scale=%large_scale%:-1,zoompan=z='min(zoom+%zoom_speed%,%max_zoom%)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=!frames!:s=%video_width%x%video_height%:fps=%fps%,setsar=1" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% temp_videos\%%i.mp4
+    ffmpeg -y -threads 0 -loop 1 -i %%i.jpeg -t !actual_time! -vf "scale=%large_scale%:-1,zoompan=z='min(zoom+%zoom_speed%,%max_zoom%)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=!frames!:s=%video_width%x%video_height%:fps=%fps%,setsar=1" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% -r %fps% -g %gop_size% -keyint_min %gop_size% -sc_threshold 0 -b:v %bitrate% -movflags +faststart temp_videos\%%i.mp4
   ) else if %%i==2 (
-    :: Ảnh 2: Zoom out từ góc trên bên phải
-    ffmpeg -y -threads 0 -loop 1 -i %%i.jpeg -t !actual_time! -vf "scale=%large_scale%:-1,zoompan=z='if(eq(on,1),%max_zoom%,zoom-%zoom_speed%)':x='iw-iw/zoom':y='0':d=!frames!:s=%video_width%x%video_height%:fps=%fps%,setsar=1" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% temp_videos\%%i.mp4
+    ffmpeg -y -threads 0 -loop 1 -i %%i.jpeg -t !actual_time! -vf "scale=%large_scale%:-1,zoompan=z='if(eq(on,1),%max_zoom%,zoom-%zoom_speed%)':x='iw-iw/zoom':y='0':d=!frames!:s=%video_width%x%video_height%:fps=%fps%,setsar=1" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% -r %fps% -g %gop_size% -keyint_min %gop_size% -sc_threshold 0 -b:v %bitrate% -movflags +faststart temp_videos\%%i.mp4
   ) else if %%i==3 (
-    :: Ảnh 3: Zoom in từ góc dưới bên trái
-    ffmpeg -y -threads 0 -loop 1 -i %%i.jpeg -t !actual_time! -vf "scale=%large_scale%:-1,zoompan=z='min(zoom+%zoom_speed%,%max_zoom%)':x='0':y='ih-ih/zoom':d=!frames!:s=%video_width%x%video_height%:fps=%fps%,setsar=1" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% temp_videos\%%i.mp4
+    ffmpeg -y -threads 0 -loop 1 -i %%i.jpeg -t !actual_time! -vf "scale=%large_scale%:-1,zoompan=z='min(zoom+%zoom_speed%,%max_zoom%)':x='0':y='ih-ih/zoom':d=!frames!:s=%video_width%x%video_height%:fps=%fps%,setsar=1" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% -r %fps% -g %gop_size% -keyint_min %gop_size% -sc_threshold 0 -b:v %bitrate% -movflags +faststart temp_videos\%%i.mp4
   ) else if %%i==4 (
-    :: Ảnh 4: Pan từ trái sang phải
-    ffmpeg -y -threads 0 -loop 1 -i %%i.jpeg -t !actual_time! -vf "scale=%large_scale%:-1,zoompan=z='1.1':x='min(max((iw-iw/zoom)*((on)/(!frames!)),0),iw)':y='ih/2-(ih/zoom/2)':d=!frames!:s=%video_width%x%video_height%:fps=%fps%,setsar=1" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% temp_videos\%%i.mp4
+    ffmpeg -y -threads 0 -loop 1 -i %%i.jpeg -t !actual_time! -vf "scale=%large_scale%:-1,zoompan=z='1.1':x='min(max((iw-iw/zoom)*((on)/(!frames!)),0),iw)':y='ih/2-(ih/zoom/2)':d=!frames!:s=%video_width%x%video_height%:fps=%fps%,setsar=1" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% -r %fps% -g %gop_size% -keyint_min %gop_size% -sc_threshold 0 -b:v %bitrate% -movflags +faststart temp_videos\%%i.mp4
   ) else if %%i==5 (
-    :: Ảnh 5: Zoom out từ giữa
-    ffmpeg -y -threads 0 -loop 1 -i %%i.jpeg -t !actual_time! -vf "scale=%large_scale%:-1,zoompan=z='if(eq(on,1),%max_zoom%,zoom-%zoom_speed%)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=!frames!:s=%video_width%x%video_height%:fps=%fps%,setsar=1" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% temp_videos\%%i.mp4
+    ffmpeg -y -threads 0 -loop 1 -i %%i.jpeg -t !actual_time! -vf "scale=%large_scale%:-1,zoompan=z='if(eq(on,1),%max_zoom%,zoom-%zoom_speed%)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=!frames!:s=%video_width%x%video_height%:fps=%fps%,setsar=1" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% -r %fps% -g %gop_size% -keyint_min %gop_size% -sc_threshold 0 -b:v %bitrate% -movflags +faststart temp_videos\%%i.mp4
   ) else if %%i==6 (
-    :: Ảnh 6: Pan từ trên xuống dưới
-    ffmpeg -y -threads 0 -loop 1 -i %%i.jpeg -t !actual_time! -vf "scale=%large_scale%:-1,zoompan=z='1.1':x='iw/2-(iw/zoom/2)':y='min(max((ih-ih/zoom)*((on)/(!frames!)),0),ih)':d=!frames!:s=%video_width%x%video_height%:fps=%fps%,setsar=1" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% temp_videos\%%i.mp4
+    ffmpeg -y -threads 0 -loop 1 -i %%i.jpeg -t !actual_time! -vf "scale=%large_scale%:-1,zoompan=z='1.1':x='iw/2-(iw/zoom/2)':y='min(max((ih-ih/zoom)*((on)/(!frames!)),0),ih)':d=!frames!:s=%video_width%x%video_height%:fps=%fps%,setsar=1" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% -r %fps% -g %gop_size% -keyint_min %gop_size% -sc_threshold 0 -b:v %bitrate% -movflags +faststart temp_videos\%%i.mp4
   ) else if %%i==7 (
-    :: Ảnh 7: Zoom in từ góc trên bên phải
-    ffmpeg -y -threads 0 -loop 1 -i %%i.jpeg -t !actual_time! -vf "scale=%large_scale%:-1,zoompan=z='min(zoom+%zoom_speed%,%max_zoom%)':x='iw-iw/zoom':y='0':d=!frames!:s=%video_width%x%video_height%:fps=%fps%,setsar=1" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% temp_videos\%%i.mp4
+    ffmpeg -y -threads 0 -loop 1 -i %%i.jpeg -t !actual_time! -vf "scale=%large_scale%:-1,zoompan=z='min(zoom+%zoom_speed%,%max_zoom%)':x='iw-iw/zoom':y='0':d=!frames!:s=%video_width%x%video_height%:fps=%fps%,setsar=1" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% -r %fps% -g %gop_size% -keyint_min %gop_size% -sc_threshold 0 -b:v %bitrate% -movflags +faststart temp_videos\%%i.mp4
   ) else if %%i==8 (
-    :: Ảnh 8: Zoom out từ góc dưới bên phải
-    ffmpeg -y -threads 0 -loop 1 -i %%i.jpeg -t !actual_time! -vf "scale=%large_scale%:-1,zoompan=z='if(eq(on,1),%max_zoom%,zoom-%zoom_speed%)':x='iw-iw/zoom':y='ih-ih/zoom':d=!frames!:s=%video_width%x%video_height%:fps=%fps%,setsar=1" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% temp_videos\%%i.mp4
+    ffmpeg -y -threads 0 -loop 1 -i %%i.jpeg -t !actual_time! -vf "scale=%large_scale%:-1,zoompan=z='if(eq(on,1),%max_zoom%,zoom-%zoom_speed%)':x='iw-iw/zoom':y='ih-ih/zoom':d=!frames!:s=%video_width%x%video_height%:fps=%fps%,setsar=1" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% -r %fps% -g %gop_size% -keyint_min %gop_size% -sc_threshold 0 -b:v %bitrate% -movflags +faststart temp_videos\%%i.mp4
   )
   
+  :: Kiểm tra lỗi sau khi tạo video tạm cho từng ảnh
   if not exist temp_videos\%%i.mp4 (
     echo Loi: Khong the tao file video tam cho anh %%i.jpeg
     goto :cleanup
+  ) else (
+    echo Tao video tam cho anh %%i.jpeg thanh cong.
   )
 )
 
-:: Tạo file danh sách để ghép video đơn giản (backup method)
-(
-  echo file 'temp_videos\1.mp4'
-  echo file 'temp_videos\2.mp4'
-  echo file 'temp_videos\3.mp4'
-  echo file 'temp_videos\4.mp4'
-  echo file 'temp_videos\5.mp4'
-  echo file 'temp_videos\6.mp4'
-  echo file 'temp_videos\7.mp4'
-  echo file 'temp_videos\8.mp4'
-) > concat_list.txt
+echo Ghep cac video voi hieu ung transition smoothleft...
 
-:: Phương pháp 1: Sử dụng concat demuxer (đơn giản nhất, nhưng không có hiệu ứng)
-ffmpeg -y -threads 0 -f concat -safe 0 -i concat_list.txt -c copy temp_videos\basic_concat.mp4
+:: Ghép các video tạm sử dụng hiệu ứng xfade với transition "smoothleft"
+:: Tính toán offset chuyển cảnh:
+::   Transition 1: 4 - 0.5 = 3.5 giây
+::   Transition 2: (4+3-0.5) - 0.5 = 6.0 giây
+::   Transition 3: (4+3+5-0.5*2) - 0.5 = 10.5 giây
+::   Transition 4: (4+3+5+3-0.5*3) - 0.5 = 13.0 giây
+::   Transition 5: (4+3+5+3+4-0.5*4) - 0.5 = 16.5 giây
+::   Transition 6: (4+3+5+3+4+3-0.5*5) - 0.5 = 19.0 giây
+::   Transition 7: (4+3+5+3+4+3+5-0.5*6) - 0.5 = 23.5 giây
 
-echo Dang noi cac video va ap dung hieu ung chuyen canh...
+ffmpeg -y -threads 0 -i temp_videos\1.mp4 -i temp_videos\2.mp4 -i temp_videos\3.mp4 -i temp_videos\4.mp4 -i temp_videos\5.mp4 -i temp_videos\6.mp4 -i temp_videos\7.mp4 -i temp_videos\8.mp4 -filter_complex "[0:v]format=pix_fmts=yuva420p,setpts=PTS-STARTPTS[v0];[1:v]format=pix_fmts=yuva420p,setpts=PTS-STARTPTS[v1];[2:v]format=pix_fmts=yuva420p,setpts=PTS-STARTPTS[v2];[3:v]format=pix_fmts=yuva420p,setpts=PTS-STARTPTS[v3];[4:v]format=pix_fmts=yuva420p,setpts=PTS-STARTPTS[v4];[5:v]format=pix_fmts=yuva420p,setpts=PTS-STARTPTS[v5];[6:v]format=pix_fmts=yuva420p,setpts=PTS-STARTPTS[v6];[7:v]format=pix_fmts=yuva420p,setpts=PTS-STARTPTS[v7];[v0][v1]xfade=transition=smoothleft:duration=0.5:offset=3.5[v01];[v01][v2]xfade=transition=smoothleft:duration=0.5:offset=6.0[v02];[v02][v3]xfade=transition=smoothleft:duration=0.5:offset=10.5[v03];[v03][v4]xfade=transition=smoothleft:duration=0.5:offset=13.0[v04];[v04][v5]xfade=transition=smoothleft:duration=0.5:offset=16.5[v05];[v05][v6]xfade=transition=smoothleft:duration=0.5:offset=19.0[v06];[v06][v7]xfade=transition=smoothleft:duration=0.5:offset=23.5[vout]" -map "[vout]" -c:v libx264 -preset %preset% -crf %video_quality% -r %fps% -pix_fmt yuv420p -movflags +faststart final_video_no_audio.mp4
 
-:: Phương pháp mới cải tiến: Tạo tất cả chuyển cảnh trong một lệnh FFmpeg duy nhất
-echo Tao video voi chuyen canh bang phuong phap toi uu...
-
-:: Tạo một filter_complex phức tạp để xử lý tất cả các chuyển cảnh trong một lần thực thi
-ffmpeg -y -threads 0 ^
-  -i temp_videos\1.mp4 ^
-  -i temp_videos\2.mp4 ^
-  -i temp_videos\3.mp4 ^
-  -i temp_videos\4.mp4 ^
-  -i temp_videos\5.mp4 ^
-  -i temp_videos\6.mp4 ^
-  -i temp_videos\7.mp4 ^
-  -i temp_videos\8.mp4 ^
-  -filter_complex ^
-  "[0:v][1:v]xfade=transition=fade:duration=%transition_duration%:offset=%time_1%-%transition_duration%[v01]; ^
-   [v01][2:v]xfade=transition=slideleft:duration=%transition_duration%:offset=%time_1%+%time_2%-%transition_duration%[v012]; ^
-   [v012][3:v]xfade=transition=slideright:duration=%transition_duration%:offset=%time_1%+%time_2%+%time_3%-%transition_duration%[v0123]; ^
-   [v0123][4:v]xfade=transition=circlecrop:duration=%transition_duration%:offset=%time_1%+%time_2%+%time_3%+%time_4%-%transition_duration%[v01234]; ^
-   [v01234][5:v]xfade=transition=circleopen:duration=%transition_duration%:offset=%time_1%+%time_2%+%time_3%+%time_4%+%time_5%-%transition_duration%[v012345]; ^
-   [v012345][6:v]xfade=transition=hblur:duration=%transition_duration%:offset=%time_1%+%time_2%+%time_3%+%time_4%+%time_5%+%time_6%-%transition_duration%[v0123456]; ^
-   [v0123456][7:v]xfade=transition=dissolve:duration=%transition_duration%:offset=%time_1%+%time_2%+%time_3%+%time_4%+%time_5%+%time_6%+%time_7%-%transition_duration%[vfinal]" ^
-  -map "[vfinal]" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% temp_videos\all_transitions.mp4
-
-:: Kiểm tra xem video chuyển cảnh đã được tạo thành công chưa
-if not exist temp_videos\all_transitions.mp4 (
-    echo Loi: Khong the tao video voi chuyen canh bang phuong phap toi uu.
-    echo Thu phuong phap thay the...
-    
-    :: Thử phương pháp thay thế (chuyển cảnh tuần tự)
-    :: Hiệu ứng chuyển cảnh giữa video 1 và 2
-    ffmpeg -y -threads 0 -i temp_videos\1.mp4 -i temp_videos\2.mp4 -filter_complex "xfade=transition=fade:duration=%transition_duration%:offset=%time_1%-%transition_duration%" temp_videos\transition_1_2.mp4
-    
-    if not exist temp_videos\transition_1_2.mp4 (
-        echo Loi: Khong the tao chuyen canh giua video 1 va 2.
-        goto :use_simple_method
-    )
-    
-    :: Hiệu ứng chuyển cảnh giữa video 1_2 và 3
-    ffmpeg -y -threads 0 -i temp_videos\transition_1_2.mp4 -i temp_videos\3.mp4 -filter_complex "xfade=transition=slideleft:duration=%transition_duration%:offset=%time_1%+%time_2%-%transition_duration%" temp_videos\transition_1_2_3.mp4
-    
-    if not exist temp_videos\transition_1_2_3.mp4 (
-        echo Loi: Khong the tao chuyen canh giua video 1_2 va 3.
-        goto :use_simple_method
-    )
-    
-    :: Hiệu ứng chuyển cảnh giữa video 1_2_3 và 4
-    ffmpeg -y -threads 0 -i temp_videos\transition_1_2_3.mp4 -i temp_videos\4.mp4 -filter_complex "xfade=transition=slideright:duration=%transition_duration%:offset=%time_1%+%time_2%+%time_3%-%transition_duration%" temp_videos\transition_1_2_3_4.mp4
-    
-    if not exist temp_videos\transition_1_2_3_4.mp4 (
-        echo Loi: Khong the tao chuyen canh giua video 1_2_3 va 4.
-        goto :use_simple_method
-    )
-    
-    :: Hiệu ứng chuyển cảnh giữa video 1_2_3_4 và 5
-    ffmpeg -y -threads 0 -i temp_videos\transition_1_2_3_4.mp4 -i temp_videos\5.mp4 -filter_complex "xfade=transition=circlecrop:duration=%transition_duration%:offset=%time_1%+%time_2%+%time_3%+%time_4%-%transition_duration%" temp_videos\transition_1_2_3_4_5.mp4
-    
-    if not exist temp_videos\transition_1_2_3_4_5.mp4 (
-        echo Loi: Khong the tao chuyen canh giua video 1_2_3_4 va 5.
-        goto :use_simple_method
-    )
-    
-    :: Hiệu ứng chuyển cảnh giữa video 1_2_3_4_5 và 6
-    ffmpeg -y -threads 0 -i temp_videos\transition_1_2_3_4_5.mp4 -i temp_videos\6.mp4 -filter_complex "xfade=transition=circleopen:duration=%transition_duration%:offset=%time_1%+%time_2%+%time_3%+%time_4%+%time_5%-%transition_duration%" temp_videos\transition_1_2_3_4_5_6.mp4
-    
-    if not exist temp_videos\transition_1_2_3_4_5_6.mp4 (
-        echo Loi: Khong the tao chuyen canh giua video 1_2_3_4_5 va 6.
-        goto :use_simple_method
-    )
-    
-    :: Hiệu ứng chuyển cảnh giữa video 1_2_3_4_5_6 và 7
-    ffmpeg -y -threads 0 -i temp_videos\transition_1_2_3_4_5_6.mp4 -i temp_videos\7.mp4 -filter_complex "xfade=transition=hblur:duration=%transition_duration%:offset=%time_1%+%time_2%+%time_3%+%time_4%+%time_5%+%time_6%-%transition_duration%" temp_videos\transition_1_2_3_4_5_6_7.mp4
-    
-    if not exist temp_videos\transition_1_2_3_4_5_6_7.mp4 (
-        echo Loi: Khong the tao chuyen canh giua video 1_2_3_4_5_6 va 7.
-        goto :use_simple_method
-    )
-    
-    :: Hiệu ứng chuyển cảnh giữa video 1_2_3_4_5_6_7 và 8
-    ffmpeg -y -threads 0 -i temp_videos\transition_1_2_3_4_5_6_7.mp4 -i temp_videos\8.mp4 -filter_complex "xfade=transition=dissolve:duration=%transition_duration%:offset=%time_1%+%time_2%+%time_3%+%time_4%+%time_5%+%time_6%+%time_7%-%transition_duration%" temp_videos\final_transition.mp4
-    
-    if not exist temp_videos\final_transition.mp4 (
-        echo Loi: Khong the tao chuyen canh giua video 1_2_3_4_5_6_7 va 8.
-        goto :use_simple_method
-    )
-    
-    :: Thêm hiệu ứng fade in/out cho video cuối từ phương pháp tuần tự
-    ffmpeg -y -threads 0 -i temp_videos\final_transition.mp4 -vf "fade=t=in:st=0:d=0.5,fade=t=out:st=%fade_out_start%:d=0.5" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% temp_video_no_audio.mp4
-    
-    if exist temp_video_no_audio.mp4 (
-        goto :add_audio
-    )
+if not exist final_video_no_audio.mp4 (
+  echo Loi: Khong the ghep cac video voi hieu ung transition.
+  goto :cleanup
+) else (
+  echo Ghep cac video voi hieu ung transition thanh cong.
 )
 
-if exist temp_videos\all_transitions.mp4 (
-    :: Thêm hiệu ứng fade in/out cho video cuối từ phương pháp tối ưu
-    ffmpeg -y -threads 0 -i temp_videos\all_transitions.mp4 -vf "fade=t=in:st=0:d=0.5,fade=t=out:st=%fade_out_start%:d=0.5" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% temp_video_no_audio.mp4
-    
-    if exist temp_video_no_audio.mp4 (
-        goto :add_audio
-    )
-)
-
-:use_simple_method
-echo Su dung phuong phap don gian...
-ffmpeg -y -threads 0 -i temp_videos\basic_concat.mp4 -vf "fade=t=in:st=0:d=0.5,fade=t=out:st=%fade_out_start%:d=0.5" -c:v libx264 -pix_fmt yuv420p -preset %preset% -crf %video_quality% temp_video_no_audio.mp4
-
-if not exist temp_video_no_audio.mp4 (
-    echo Loi: Khong the tao file video tam!
-    goto :cleanup
-)
-
-:add_audio
-:: Kết hợp video với âm thanh
+:audio_merge
 echo Ket hop video voi am thanh...
-ffmpeg -y -threads 0 -i temp_video_no_audio.mp4 -i voice.mp3 -i bg.mp3 -filter_complex "[1:a]volume=1.0[voice];[2:a]volume=0.3[bg];[voice][bg]amix=inputs=2:duration=longest,dynaudnorm=f=150:g=15[a]" -map 0:v -map "[a]" -c:v copy -c:a aac -b:a 192k -shortest temp_video_with_audio.mp4
 
-if not exist temp_video_with_audio.mp4 (
-    echo Loi: Khong the tao file video voi am thanh!
-    goto :cleanup
+:: Thiết lập bộ lọc âm thanh: kết hợp voice và nhạc nền
+set filter_complex_audio="[1:a]aresample=44100,volume=1.0[voice];[2:a]aresample=44100,volume=0.3[bg];[voice][bg]amix=inputs=2:duration=longest[a]"
+
+:: Ghép âm thanh với video
+ffmpeg -y -threads 0 -i final_video_no_audio.mp4 -i voice.mp3 -i bg.mp3 -filter_complex %filter_complex_audio% -map 0:v -map "[a]" -c:v copy -c:a aac -b:a 192k -shortest final_video_with_audio.mp4
+
+if not exist final_video_with_audio.mp4 (
+  echo Loi: Khong the ket hop am thanh voi video.
+  goto :cleanup
+) else (
+  echo Ket hop am thanh voi video thanh cong.
 )
 
-:: Thêm phụ đề vào video
-echo Them phu de...
-ffmpeg -y -threads 0 -i temp_video_with_audio.mp4 -vf "subtitles=subtitle.srt:force_style='FontName=Arial,FontSize=16,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H80000000,Bold=1,Italic=0,Alignment=2,MarginV=30'" -c:a copy final_video.mp4
+echo Them phu de vao video...
+ffmpeg -y -threads 0 -i final_video_with_audio.mp4 -vf "subtitles=subtitle.srt:force_style='FontName=Arial,FontSize=16,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H80000000,Bold=1,Italic=0,Alignment=2,MarginV=30'" -c:a copy -movflags +faststart final_video.mp4
 
 if not exist final_video.mp4 (
-    echo Loi: Khong the tao file video cuoi cung!
+  echo Loi: Khong the tao file video cuoi cung voi phu de!
+  copy final_video_with_audio.mp4 final_video.mp4
+  if exist final_video.mp4 (
+    echo Da sao chep video co am thanh thanh video cuoi cung (khong co phu de).
+  ) else (
+    echo Khong the tao duoc video cuoi cung! Qua trinh that bai.
     goto :cleanup
+  )
+) else (
+  echo Them phu de thanh cong!
 )
 
 echo Hoan thanh! Video da duoc tao: final_video.mp4
 echo Kich thuoc video: %video_width%x%video_height%
 
 :cleanup
-echo Xoa file tam...
-if exist concat_list.txt del concat_list.txt
-if exist images.txt del images.txt
-if exist list.txt del list.txt
-if exist filter.txt del filter.txt
-if exist list_with_transitions.txt del list_with_transitions.txt
-if exist temp_videos rmdir /s /q temp_videos 2>nul
-if exist temp_video_no_audio.mp4 del temp_video_no_audio.mp4
-if exist temp_video_with_audio.mp4 del temp_video_with_audio.mp4
+echo Xoa cac file tam...
+if exist simple_list.txt del simple_list.txt 2>nul
+if exist images_list.txt del images_list.txt 2>nul
+if exist final_video_no_audio.mp4 del final_video_no_audio.mp4 2>nul
+if exist final_video_with_audio.mp4 del final_video_with_audio.mp4 2>nul
+:: Uncomment dòng dưới đây nếu muốn xoá thư mục chứa video tạm
+:: if exist temp_videos rmdir /s /q temp_videos 2>nul
 
 echo Qua trinh hoan tat.
 exit /b 0
