@@ -79,28 +79,28 @@ for ($i = 0; $i -lt $imgFiles.Count; $i++) {
     $outputVideo = "$tempDir\$($i+1).mp4"
     switch ($i+1) {
         1 { 
-            $vf = "scale=${largeScale}:-1,zoompan=z='min(zoom+${zoomSpeed},${maxZoom})':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${videoWidth}x${videoHeight}:fps=${fps},setsar=1" 
+            $vf = "scale=${largeScale}:-1,zoompan=z='min(zoom+${zoomSpeed},${maxZoom})':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${videoWidth}x${videoHeight}:fps=${fps},setsar=1,format=yuv420p" 
         }
         2 { 
-            $vf = "scale=${largeScale}:-1,zoompan=z='if(eq(on,1),${maxZoom},zoom-${zoomSpeed})':x='iw-iw/zoom':y='0':d=${frames}:s=${videoWidth}x${videoHeight}:fps=${fps},setsar=1" 
+            $vf = "scale=${largeScale}:-1,zoompan=z='if(eq(on,1),${maxZoom},zoom-${zoomSpeed})':x='iw-iw/zoom':y='0':d=${frames}:s=${videoWidth}x${videoHeight}:fps=${fps},setsar=1,format=yuv420p" 
         }
         3 { 
-            $vf = "scale=${largeScale}:-1,zoompan=z='min(zoom+${zoomSpeed},${maxZoom})':x='0':y='ih-ih/zoom':d=${frames}:s=${videoWidth}x${videoHeight}:fps=${fps},setsar=1" 
+            $vf = "scale=${largeScale}:-1,zoompan=z='min(zoom+${zoomSpeed},${maxZoom})':x='0':y='ih-ih/zoom':d=${frames}:s=${videoWidth}x${videoHeight}:fps=${fps},setsar=1,format=yuv420p" 
         }
         4 { 
-            $vf = "scale=${largeScale}:-1,zoompan=z='1.1':x='min(max((iw-iw/zoom)*((on)/${frames}),0),iw)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${videoWidth}x${videoHeight}:fps=${fps},setsar=1" 
+            $vf = "scale=${largeScale}:-1,zoompan=z='1.1':x='min(max((iw-iw/zoom)*((on)/${frames}),0),iw)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${videoWidth}x${videoHeight}:fps=${fps},setsar=1,format=yuv420p" 
         }
         5 { 
-            $vf = "scale=${largeScale}:-1,zoompan=z='if(eq(on,1),${maxZoom},zoom-${zoomSpeed})':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${videoWidth}x${videoHeight}:fps=${fps},setsar=1" 
+            $vf = "scale=${largeScale}:-1,zoompan=z='if(eq(on,1),${maxZoom},zoom-${zoomSpeed})':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${videoWidth}x${videoHeight}:fps=${fps},setsar=1,format=yuv420p" 
         }
         6 { 
-            $vf = "scale=${largeScale}:-1,zoompan=z='1.1':x='iw/2-(iw/zoom/2)':y='min(max((ih-ih/zoom)*((on)/${frames}),0),ih)':d=${frames}:s=${videoWidth}x${videoHeight}:fps=${fps},setsar=1" 
+            $vf = "scale=${largeScale}:-1,zoompan=z='1.1':x='iw/2-(iw/zoom/2)':y='min(max((ih-ih/zoom)*((on)/${frames}),0),ih)':d=${frames}:s=${videoWidth}x${videoHeight}:fps=${fps},setsar=1,format=yuv420p" 
         }
         7 { 
-            $vf = "scale=${largeScale}:-1,zoompan=z='min(zoom+${zoomSpeed},${maxZoom})':x='iw-iw/zoom':y='0':d=${frames}:s=${videoWidth}x${videoHeight}:fps=${fps},setsar=1" 
+            $vf = "scale=${largeScale}:-1,zoompan=z='min(zoom+${zoomSpeed},${maxZoom})':x='iw-iw/zoom':y='0':d=${frames}:s=${videoWidth}x${videoHeight}:fps=${fps},setsar=1,format=yuv420p" 
         }
         8 { 
-            $vf = "scale=${largeScale}:-1,zoompan=z='if(eq(on,1),${maxZoom},zoom-${zoomSpeed})':x='iw-iw/zoom':y='ih-ih/zoom':d=${frames}:s=${videoWidth}x${videoHeight}:fps=${fps},setsar=1" 
+            $vf = "scale=${largeScale}:-1,zoompan=z='if(eq(on,1),${maxZoom},zoom-${zoomSpeed})':x='iw-iw/zoom':y='ih-ih/zoom':d=${frames}:s=${videoWidth}x${videoHeight}:fps=${fps},setsar=1,format=yuv420p" 
         }
     }
     $ffmpegCmd = "ffmpeg -y -threads 0 -loop 1 -i $img -t $time -vf `"$vf`" -c:v libx264 -pix_fmt yuv420p -preset $preset -crf $videoQuality -r $fps -g $gopSize -keyint_min $gopSize -sc_threshold 0 -b:v $bitrate -movflags +faststart $outputVideo"
@@ -118,42 +118,43 @@ for ($i = 0; $i -lt $imgFiles.Count; $i++) {
 # 4. Ghép các video với hiệu ứng xfade "smoothleft"
 # -------------------------------
 
-# Tính toán các offset dựa theo thời lượng từng đoạn
-$offset1 = 4 - $transitionDuration
-$offset2 = (4 + 3) - 2*$transitionDuration
-$offset3 = (4 + 3 + 5) - 3*$transitionDuration
-$offset4 = (4 + 3 + 5 + 3) - 4*$transitionDuration
-$offset5 = (4 + 3 + 5 + 3 + 4) - 5*$transitionDuration
-$offset6 = (4 + 3 + 5 + 3 + 4 + 3) - 6*$transitionDuration
-$offset7 = (4 + 3 + 5 + 3 + 4 + 3 + 5) - 7*$transitionDuration
+# Tạo file danh sách video để concat
+$concatList = "concat_list.txt"
+$concatContent = ""
+for ($i = 1; $i -le 8; $i++) {
+    $videoPath = "temp_videos\$i.mp4"
+    if (-not (Test-Path $videoPath)) {
+        Write-Error "Error: Video file $videoPath not found."
+        exit 1
+    }
+    $concatContent += "file '$videoPath'`n"
+    if ($i -lt 8) {
+        $concatContent += "duration $($times[$i-1])`n"
+    }
+}
 
-# Xây dựng chuỗi filter_complex cho xfade
-$filterComplex = "[0:v]format=pix_fmts=yuva420p,setpts=PTS-STARTPTS[v0];" +
-"[1:v]format=pix_fmts=yuva420p,setpts=PTS-STARTPTS[v1];" +
-"[2:v]format=pix_fmts=yuva420p,setpts=PTS-STARTPTS[v2];" +
-"[3:v]format=pix_fmts=yuva420p,setpts=PTS-STARTPTS[v3];" +
-"[4:v]format=pix_fmts=yuva420p,setpts=PTS-STARTPTS[v4];" +
-"[5:v]format=pix_fmts=yuva420p,setpts=PTS-STARTPTS[v5];" +
-"[6:v]format=pix_fmts=yuva420p,setpts=PTS-STARTPTS[v6];" +
-"[7:v]format=pix_fmts=yuva420p,setpts=PTS-STARTPTS[v7];" +
-"[v0][v1]xfade=transition=smoothleft:duration=${transitionDuration}:offset=$offset1[v01];" +
-"[v01][v2]xfade=transition=smoothleft:duration=${transitionDuration}:offset=$offset2[v02];" +
-"[v02][v3]xfade=transition=smoothleft:duration=${transitionDuration}:offset=$offset3[v03];" +
-"[v03][v4]xfade=transition=smoothleft:duration=${transitionDuration}:offset=$offset4[v04];" +
-"[v04][v5]xfade=transition=smoothleft:duration=${transitionDuration}:offset=$offset5[v05];" +
-"[v05][v6]xfade=transition=smoothleft:duration=${transitionDuration}:offset=$offset6[v06];" +
-"[v06][v7]xfade=transition=smoothleft:duration=${transitionDuration}:offset=$offset7[vout]"
+# Lưu file danh sách
+$concatContent | Out-File -FilePath $concatList -Encoding UTF8
+if (-not (Test-Path $concatList)) {
+    Write-Error "Error: Failed to create concat list file."
+    exit 1
+}
 
-$ffmpegXfade = "ffmpeg -y -threads 0 -i temp_videos\1.mp4 -i temp_videos\2.mp4 -i temp_videos\3.mp4 -i temp_videos\4.mp4 -i temp_videos\5.mp4 -i temp_videos\6.mp4 -i temp_videos\7.mp4 -i temp_videos\8.mp4 -filter_complex `"$filterComplex`" -map `"[vout]`" -c:v libx264 -preset $preset -crf $videoQuality -r $fps -pix_fmt yuv420p -movflags +faststart final_video_no_audio.mp4"
-Write-Host "Executing xfade command:"
-Write-Host $ffmpegXfade
-Invoke-Expression $ffmpegXfade
+# Kiểm tra nội dung file danh sách
+Write-Host "Concat list content:"
+Get-Content $concatList | ForEach-Object { Write-Host $_ }
+
+# Ghép video sử dụng concat filter
+$ffmpegConcat = "ffmpeg -y -threads 0 -f concat -safe 0 -i $concatList -c:v libx264 -preset $preset -crf $videoQuality -r $fps -pix_fmt yuv420p -movflags +faststart final_video_no_audio.mp4"
+Write-Host "Executing concat command:"
+Write-Host $ffmpegConcat
+Invoke-Expression $ffmpegConcat
 
 if (-not (Test-Path "final_video_no_audio.mp4")) {
-    Write-Error "Error: Failed to combine videos with transition."
+    Write-Error "Error: Failed to combine videos."
     exit 1
 } else {
-    Write-Host "Video combined with transition successfully."
+    Write-Host "Video combined successfully."
 }
 
 # -------------------------------

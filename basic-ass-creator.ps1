@@ -144,14 +144,14 @@ function CreateHighlightDialogueLine2 {
     $startTimeAss = FormatAssTime $startTime
     $endTimeAss = FormatAssTime $endTime
     
-    # Tạo tag fade đẹp hơn với thời gian fade in/out dài hơn
-    $fadeTag = "$bs" + "fad(250,250)"
+    # Tạo tag fade đẹp hơn với thời gian fade in/out ngắn hơn để tránh chồng lấn
+    $fadeTag = "$bs" + "fad(150,150)"
     
     # Tạo các tag hiệu ứng cơ bản nâng cao
     $blurTag = "$bs" + "blur0.6"
     $borderTag = "$bs" + "bord1.8"
     $shadowTag = "$bs" + "shad1.2"
-    $spacingTag = "$bs" + "fsp0.5" # Thêm khoảng cách giữa các ký tự
+    $spacingTag = "$bs" + "fsp0.5"
     
     # Tạo tag hiệu ứng cơ bản
     $basicEffect = "{$fadeTag$blurTag$borderTag$shadowTag$spacingTag}"
@@ -165,7 +165,7 @@ function CreateHighlightDialogueLine2 {
     # Xây dựng chuỗi phụ đề với hiệu ứng highlight
     $dialogueLines = @()
     
-    # Tạo một dòng phụ đề với màu mặc định cho tất cả các từ
+    # Tạo một dòng phụ đề với màu mặc định cho tất cả các từ (layer 0)
     $defaultText = "{$defaultColorTag$outlineTag$shadowColorTag}"
     foreach ($wordObj in $wordObjects) {
         $defaultText += "$($wordObj.word) "
@@ -173,7 +173,7 @@ function CreateHighlightDialogueLine2 {
     $defaultText = $defaultText.TrimEnd()
     
     # Thêm dòng phụ đề mặc định (layer 0)
-    $dialoguePrefix = "Dialogue: 0,$startTimeAss,$endTimeAss,Default,,0,0,0,,"
+    $dialoguePrefix = "Dialogue: 0,$startTimeAss,$endTimeAss,Default,,0,0,0,," 
     $dialogueLines += $dialoguePrefix + $basicEffect + $defaultText
     
     # Tạo các dòng phụ đề highlight cho từng từ (layer 1)
@@ -187,15 +187,15 @@ function CreateHighlightDialogueLine2 {
             $wordStartAss = FormatAssTime $wordStart
             $wordEndAss = FormatAssTime $wordEnd
             
-            # Tính toán thời gian transition
-            $transitionTime = [Math]::Min(($wordEnd - $wordStart) * 0.3, 0.15) * 1000 # Tối đa 150ms hoặc 30% thời gian từ
+            # Tính toán thời gian transition ngắn hơn để tránh nhảy
+            $transitionTime = [Math]::Min(($wordEnd - $wordStart) * 0.2, 0.1) * 1000 # Giảm xuống 100ms hoặc 20% thời gian từ
             
-            # Tạo hiệu ứng transform cho từ được highlight
-            $transformTag = "$bs" + "t(0,$transitionTime,$bs" + "fscx105$bs" + "fscy105$bs" + "blur1.2)"
-            $transformTag2 = "$bs" + "t($transitionTime," + ($transitionTime * 2) + ",$bs" + "fscx100$bs" + "fscy100$bs" + "blur0.6)"
+            # Tạo hiệu ứng transform cho từ được highlight với thời gian ngắn hơn
+            $transformTag = "$bs" + "t(0,$transitionTime,$bs" + "fscx102$bs" + "fscy102$bs" + "blur0.8)"
+            $transformTag2 = "$bs" + "t($transitionTime," + ($transitionTime * 2) + ",$bs" + "fscx100$bs" + "fscy100$bs" + "blur0.4)"
             
-            # Tạo hiệu ứng glow cho từ được highlight
-            $glowTag = "$bs" + "4a$amp" + "H40" # Alpha cho hiệu ứng glow
+            # Tạo hiệu ứng glow cho từ được highlight với độ mờ thấp hơn
+            $glowTag = "$bs" + "4a$amp" + "H30"
             
             # Tạo văn bản với từ được highlight
             $highlightText = "{$defaultColorTag$outlineTag$shadowColorTag}"
@@ -217,24 +217,24 @@ function CreateHighlightDialogueLine2 {
                 }
             }
             
-            # Thêm dòng highlight cho từ này
-            $highlightPrefix = "Dialogue: 1,$wordStartAss,$wordEndAss,Default,,0,0,0,,"
+            # Thêm dòng highlight cho từ này (layer 1)
+            $highlightPrefix = "Dialogue: 1,$wordStartAss,$wordEndAss,Default,,0,0,0,," 
             $highlightEffect = "{$blurTag$borderTag$shadowTag$spacingTag}"
             $dialogueLines += $highlightPrefix + $highlightEffect + $highlightText
             
             # Thêm hiệu ứng glow nhẹ dưới từ được highlight (layer -1)
-            $glowPrefix = "Dialogue: -1,$wordStartAss,$wordEndAss,Default,,0,0,0,,"
+            $glowPrefix = "Dialogue: -1,$wordStartAss,$wordEndAss,Default,,0,0,0,," 
             $glowText = ""
             
             for ($i = 0; $i -lt $wordObjects.Length; $i++) {
                 $w = $wordObjects[$i]
                 
                 if ($w -eq $wordObj) {
-                    # Tạo hiệu ứng glow cho từ được highlight
-                    $glowEffect = "{$bs" + "pos(" + (960) + "," + (540 + 2) + ")$bs" + "blur3$bs" + "bord0$bs" + "shad0$bs" + "fscx102$bs" + "fscy102$bs" + "alpha&H80&$bs" + "c$amp" + "H$script:highlightColor}"
+                    # Tạo hiệu ứng glow cho từ được highlight với độ mờ thấp hơn
+                    $glowEffect = "{$bs" + "pos(" + (960) + "," + (540 + 2) + ")$bs" + "blur2$bs" + "bord0$bs" + "shad0$bs" + "fscx101$bs" + "fscy101$bs" + "alpha&H60&$bs" + "c$amp" + "H$script:highlightColor}"
                     $glowText += "$glowEffect$($w.word) "
                 } else {
-                    $glowText += " " * ($w.word.Length + 1) # Thay thế từ không highlight bằng khoảng trắng
+                    $glowText += " " * ($w.word.Length + 1)
                 }
             }
             
