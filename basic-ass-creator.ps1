@@ -9,7 +9,10 @@ $script:defaultColor = "FFFFFF" # Màu chữ mặc định (định dạng: bbgg
 $script:highlightColor = "0CF4FF" # Màu highlight (định dạng: bbggrr)
 $script:outlineColor = "000000" # Màu viền
 $script:shadowColor = "000000" # Màu bóng đổ
-$script:titleText = "VIDEO TIẾNG VIỆT" # Văn bản tiêu đề
+$script:titleText = "Mèo 10 chân hút vape" # Văn bản tiêu đề
+$script:titleColor1 = "00FFFF" # Màu gradient 1 cho title (định dạng: bbggrr)
+$script:titleColor2 = "FF00FF" # Màu gradient 2 cho title (định dạng: bbggrr)
+$script:titleDuration = 7.0 # Thời gian hiển thị title (giây)
 
 # ------------ CÁC HÀM XỬ LÝ CƠ BẢN ------------
 # Hàm thêm số 0 vào đầu
@@ -89,25 +92,41 @@ function CreateTitleLine {
     $bs = $script:backslash
     $amp = $script:ampersand
     
-    # Tạo tag fade
-    $fadTag = "$bs" + "fad(300,300)"
+    # Tạo tag fade với thời gian fade in/out dài hơn
+    $fadTag = "$bs" + "fad(800,800)"
     
-    # Tạo tag màu
-    $colorTag = "$bs" + "c$amp" + "H00FFFF"
+    # Tạo tag hiệu ứng chuyển động
+    $moveTag = "$bs" + "move(960,100,960,150,0,2000)"
     
-    # Tạo tag viền
+    # Tạo tag hiệu ứng gradient màu
+    $colorTag1 = "$bs" + "1c$amp" + "H$script:titleColor1"
+    $colorTag2 = "$bs" + "2c$amp" + "H$script:titleColor2"
+    
+    # Tạo tag viền và glow
     $outlineTag = "$bs" + "3c$amp" + "H000000"
+    $blurTag = "$bs" + "blur2"
+    $borderTag = "$bs" + "bord2"
+    $shadowTag = "$bs" + "shad3"
     
-    # Tạo tag blur
-    $blurTag = "$bs" + "blur0.8"
+    # Tạo tag transform để tạo hiệu ứng chuyển động và nhấp nháy
+    $t1 = "$bs" + "t(0,2000,$bs" + "fscx120$bs" + "fscy120)"
+    $t2 = "$bs" + "t(2000,4000,$bs" + "fscx100$bs" + "fscy100)"
+    $t3 = "$bs" + "t(4000,6000,$bs" + "fscx110$bs" + "fscy110)"
+    
+    # Tạo tag glow
+    $glowTag = "$bs" + "4a$amp" + "H60"
     
     # Kết hợp các tag
-    $allTags = "{$fadTag$colorTag$outlineTag$blurTag}"
+    $allTags = "{$fadTag$moveTag$colorTag1$colorTag2$outlineTag$blurTag$borderTag$shadowTag$glowTag$t1$t2$t3}"
     
-    # Tạo dòng dialogue hoàn chỉnh
-    $titleLine = "Dialogue: 0,0:00:00.00,0:00:05.00,Title,,0,0,0,,$allTags$script:titleText"
+    # Tạo dòng dialogue hoàn chỉnh với thời gian hiển thị dài hơn
+    $titleLine = "Dialogue: 0,0:00:00.00,0:00:0$script:titleDuration.00,Title,,0,0,0,,$allTags$script:titleText"
     
-    return $titleLine
+    # Tạo thêm một dòng phụ đề với hiệu ứng bóng mờ để tạo hiệu ứng glow
+    $glowEffect = "{$bs" + "pos(960,150)$bs" + "blur5$bs" + "bord0$bs" + "shad0$bs" + "fscx110$bs" + "fscy110$bs" + "alpha&H80&$bs" + "c$amp" + "H$script:titleColor2$fadTag}"
+    $titleGlowLine = "Dialogue: -1,0:00:00.50,0:00:0$($script:titleDuration - 0.5).00,Title,,0,0,0,,$glowEffect$script:titleText"
+    
+    return $titleLine + "`n" + $titleGlowLine
 }
 
 # Hàm tạo dòng dialogue với hiệu ứng highlight từng từ
@@ -125,27 +144,29 @@ function CreateHighlightDialogueLine2 {
     $startTimeAss = FormatAssTime $startTime
     $endTimeAss = FormatAssTime $endTime
     
-    # Tạo tag fade đơn giản
-    $fadeTag = "$bs" + "fad(200,200)"
+    # Tạo tag fade đẹp hơn với thời gian fade in/out dài hơn
+    $fadeTag = "$bs" + "fad(250,250)"
     
-    # Tạo các tag hiệu ứng cơ bản
-    $blurTag = "$bs" + "blur0.5"
-    $borderTag = "$bs" + "bord1.5"
-    $shadowTag = "$bs" + "shad1"
+    # Tạo các tag hiệu ứng cơ bản nâng cao
+    $blurTag = "$bs" + "blur0.6"
+    $borderTag = "$bs" + "bord1.8"
+    $shadowTag = "$bs" + "shad1.2"
+    $spacingTag = "$bs" + "fsp0.5" # Thêm khoảng cách giữa các ký tự
     
     # Tạo tag hiệu ứng cơ bản
-    $basicEffect = "{$fadeTag$blurTag$borderTag$shadowTag}"
+    $basicEffect = "{$fadeTag$blurTag$borderTag$shadowTag$spacingTag}"
     
-    # Tạo tag màu mặc định và highlight
+    # Tạo tag màu mặc định và highlight với gradient
     $defaultColorTag = "$bs" + "c$amp" + "H$script:defaultColor"
     $highlightColorTag = "$bs" + "c$amp" + "H$script:highlightColor"
     $outlineTag = "$bs" + "3c$amp" + "H$script:outlineColor"
+    $shadowColorTag = "$bs" + "4c$amp" + "H$script:shadowColor"
     
     # Xây dựng chuỗi phụ đề với hiệu ứng highlight
     $dialogueLines = @()
     
     # Tạo một dòng phụ đề với màu mặc định cho tất cả các từ
-    $defaultText = "{$defaultColorTag$outlineTag}"
+    $defaultText = "{$defaultColorTag$outlineTag$shadowColorTag}"
     foreach ($wordObj in $wordObjects) {
         $defaultText += "$($wordObj.word) "
     }
@@ -166,18 +187,25 @@ function CreateHighlightDialogueLine2 {
             $wordStartAss = FormatAssTime $wordStart
             $wordEndAss = FormatAssTime $wordEnd
             
-            # Tạo văn bản phụ đề với từ được highlight
-            $highlightText = ""
+            # Tính toán thời gian transition
+            $transitionTime = [Math]::Min(($wordEnd - $wordStart) * 0.3, 0.15) * 1000 # Tối đa 150ms hoặc 30% thời gian từ
+            
+            # Tạo hiệu ứng transform cho từ được highlight
+            $transformTag = "$bs" + "t(0,$transitionTime,$bs" + "fscx105$bs" + "fscy105$bs" + "blur1.2)"
+            $transformTag2 = "$bs" + "t($transitionTime," + ($transitionTime * 2) + ",$bs" + "fscx100$bs" + "fscy100$bs" + "blur0.6)"
+            
+            # Tạo hiệu ứng glow cho từ được highlight
+            $glowTag = "$bs" + "4a$amp" + "H40" # Alpha cho hiệu ứng glow
             
             # Tạo văn bản với từ được highlight
-            $highlightText = "{$defaultColorTag$outlineTag}"
+            $highlightText = "{$defaultColorTag$outlineTag$shadowColorTag}"
             
             for ($i = 0; $i -lt $wordObjects.Length; $i++) {
                 $w = $wordObjects[$i]
                 
                 if ($w -eq $wordObj) {
-                    # Đây là từ cần highlight
-                    $highlightText += "{$highlightColorTag}$($w.word){$defaultColorTag}"
+                    # Đây là từ cần highlight với hiệu ứng đẹp hơn
+                    $highlightText += "{$highlightColorTag$transformTag$transformTag2$glowTag}$($w.word){$defaultColorTag}"
                 } else {
                     # Đây là từ bình thường
                     $highlightText += "$($w.word)"
@@ -191,7 +219,28 @@ function CreateHighlightDialogueLine2 {
             
             # Thêm dòng highlight cho từ này
             $highlightPrefix = "Dialogue: 1,$wordStartAss,$wordEndAss,Default,,0,0,0,,"
-            $dialogueLines += $highlightPrefix + "{$blurTag$borderTag$shadowTag}" + $highlightText
+            $highlightEffect = "{$blurTag$borderTag$shadowTag$spacingTag}"
+            $dialogueLines += $highlightPrefix + $highlightEffect + $highlightText
+            
+            # Thêm hiệu ứng glow nhẹ dưới từ được highlight (layer -1)
+            $glowPrefix = "Dialogue: -1,$wordStartAss,$wordEndAss,Default,,0,0,0,,"
+            $glowText = ""
+            
+            for ($i = 0; $i -lt $wordObjects.Length; $i++) {
+                $w = $wordObjects[$i]
+                
+                if ($w -eq $wordObj) {
+                    # Tạo hiệu ứng glow cho từ được highlight
+                    $glowEffect = "{$bs" + "pos(" + (960) + "," + (540 + 2) + ")$bs" + "blur3$bs" + "bord0$bs" + "shad0$bs" + "fscx102$bs" + "fscy102$bs" + "alpha&H80&$bs" + "c$amp" + "H$script:highlightColor}"
+                    $glowText += "$glowEffect$($w.word) "
+                } else {
+                    $glowText += " " * ($w.word.Length + 1) # Thay thế từ không highlight bằng khoảng trắng
+                }
+            }
+            
+            if ($glowText.Trim() -ne "") {
+                $dialogueLines += $glowPrefix + $glowText.TrimEnd()
+            }
         }
     }
     

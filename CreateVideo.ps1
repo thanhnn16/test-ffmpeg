@@ -6,7 +6,7 @@
 # 1. Kiểm tra sự tồn tại của các file cần thiết
 # -------------------------------
 
-$times = @(4, 3, 5, 3, 4, 3, 5, 3)
+$times = @(5.42, 5.82, 4.26, 3.82, 2.98, 5.8, 4.42, 7.36)
 $imgFiles = 1..8 | ForEach-Object { "$_.jpeg" }
 $missingFiles = 0
 Write-Host "Checking image files..."
